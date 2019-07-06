@@ -3,3 +3,4 @@
 ## 文档
 * [木知需求文档](https://www.jianshu.com/p/9c2ea38269a8)
 * [木知设计文档](https://www.jianshu.com/p/63da6e473b78)
+* [木知原型设计](https://www.jianshu.com/p/8d8f9bd81a26)
