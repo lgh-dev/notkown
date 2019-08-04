@@ -1,24 +1,22 @@
 package db
 
 import (
-	"github.com/boltdb/bolt"
-	"log"
 	"encoding/json"
+	"github.com/boltdb/bolt"
 	"kits"
+	"log"
 )
 
 //数据库文件名称
 const dbfile = "data.db"
 
 //数据库对象
-type Table struct {
-	TableName string       //表名称
+type LocalDB struct {
 	Db        *bolt.DB     //数据库对象
-	Bucket    *bolt.Bucket //表对象
 }
 
 //创建数据库
-func NewboltDB() *bolt.DB {
+func newboltDB() *bolt.DB {
 	db, err := bolt.Open(dbfile, 0600, nil)
 	if err != nil {
 		log.Fatal(err)
@@ -27,67 +25,70 @@ func NewboltDB() *bolt.DB {
 }
 
 //根据表名创建数据库对象
-func CreateDB(tableName string) *Table {
+func CreateLocalDB() *LocalDB {
 	//创建数据库对象
-	db := Table{TableName: tableName, Db: NewboltDB()}
+	db := LocalDB{Db: newboltDB()}
 	return &db
 }
 
 //新增数据
-func (table *Table) Add(key []byte, value interface{}) *Table {
-	err := table.Db.Update(func(tx *bolt.Tx) error {
-		tb, err := tx.CreateBucketIfNotExists([]byte(table.TableName))
+func (localdb *LocalDB) Add(tableName string,key string, value interface{}) *LocalDB {
+	err := localdb.Db.Update(func(tx *bolt.Tx) error {
+		bucket, err := tx.CreateBucketIfNotExists([]byte(tableName))
 		if err != nil {
+			kits.Panic("创建表异常！", err)
 			return err
 		}
-		//赋予表对象
-		table.Bucket = tb
-		//转换数据
+		//转换json数据
 		buf, err := json.Marshal(value)
 		kits.Panic("转换数据异常！", err)
 		//存储数据
-		tb.Put(key, buf)
-
-		if err := tx.Commit(); err != nil {
-			return err
-		}
+		bucket.Put([]byte(key), buf)
 		return nil
 	})
 	kits.Panic("新增数据异常！", err)
-	return table
+	return localdb
 }
 
 //自动生成ID
-func (table *Table) AddAuthForID(value interface{}) *Table  {
-	id, _ :=table.Bucket.NextSequence()
-	table.Add(kits.UInt64ToBytes(id),value)
-	return table
-}
+//func (LocalDB *LocalDB) AddAuthForID(value interface{}) *LocalDB  {
+//	id, _ :=LocalDB.Bucket.NextSequence()
+//	LocalDB.Add(kits.UInt64ToBytes(id),value)
+//	return LocalDB
+//}
 
 //更新数据
-func (table *Table) Update(key []byte, value string) *Table {
-	return table.Add(key, value)
-}
+//func (LocalDB *LocalDB) Update(key []byte, value string) *LocalDB {
+//	return LocalDB.Add(key, value)
+//}
 
 //删除数据
-func (table *Table) Delete(key string) *Table {
-	table.Db.Update(func(tx *bolt.Tx) error {
-		err := table.Bucket.Delete([]byte(key))
+func (localDB *LocalDB) Delete(tableName string,key string) *LocalDB {
+
+	localDB.Db.Update(func(tx *bolt.Tx) error {
+		bucket, err := tx.CreateBucketIfNotExists([]byte(tableName))
+		if err != nil {
+			kits.Panic("创建表异常！", err)
+			return err
+		}
+		err = bucket.Delete([]byte(key))
 		if err != nil {
 			log.Panic(err)
 			return err
 		}
 		return nil
 	})
-	return table
+	return localDB
 }
 
 //查询数据
-func (table *Table) Query(key []byte) []byte {
-	var v []byte
-	table.Db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(table.TableName))
-		v = b.Get(key)
+func (localDB *LocalDB) Query( tableName string,key string) interface{} {
+	var v interface{}
+	localDB.Db.View(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte(tableName))
+		str := bucket.Get([]byte(key))
+		err:=json.Unmarshal(str,&v)
+		kits.Panic("json转换对象出错！",err)
 		return nil
 	})
 	return v
