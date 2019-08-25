@@ -1,8 +1,11 @@
 package db
 
 import (
+	"domain"
 	"encoding/json"
+	"fmt"
 	"github.com/boltdb/bolt"
+	"github.com/satori/go.uuid"
 	"kits"
 	"log"
 )
@@ -12,7 +15,7 @@ const dbfile = "data.db"
 
 //数据库对象
 type LocalDB struct {
-	Db        *bolt.DB     //数据库对象
+	Db *bolt.DB //数据库对象
 }
 
 //创建数据库
@@ -32,7 +35,7 @@ func CreateLocalDB() *LocalDB {
 }
 
 //新增数据
-func (localdb *LocalDB) Add(tableName string,key string, value interface{}) *LocalDB {
+func (localdb *LocalDB) Add(tableName string, key string, value interface{}) *LocalDB {
 	err := localdb.Db.Update(func(tx *bolt.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists([]byte(tableName))
 		if err != nil {
@@ -43,29 +46,32 @@ func (localdb *LocalDB) Add(tableName string,key string, value interface{}) *Loc
 		buf, err := json.Marshal(value)
 		kits.Panic("转换数据异常！", err)
 		//存储数据
-		bucket.Put([]byte(key), buf)
+		err=bucket.Put([]byte(key), buf)
+		kits.Panic("插入数据异常！", err)
 		return nil
 	})
-	kits.Panic("新增数据异常！", err)
+	kits.Panic("新增或更新数据异常！", err)
 	return localdb
 }
 
-//自动生成ID
-//func (LocalDB *LocalDB) AddAuthForID(value interface{}) *LocalDB  {
-//	id, _ :=LocalDB.Bucket.NextSequence()
-//	LocalDB.Add(kits.UInt64ToBytes(id),value)
-//	return LocalDB
-//}
+//新增数据
+func (localdb *LocalDB) Upadate(tableName string, key string, value interface{}) *LocalDB {
+	return localdb.Add(tableName, key, value)
+}
 
-//更新数据
-//func (LocalDB *LocalDB) Update(key []byte, value string) *LocalDB {
-//	return LocalDB.Add(key, value)
-//}
+//自动生成ID
+func (localDB *LocalDB) NextId() string {
+	id, err :=uuid.NewV4();
+	kits.Panic("生成uuid出现异常：",err)
+	fmt.Printf("UUIDv4: %s\n", id)
+	return id.String()
+}
+
 
 //删除数据
-func (localDB *LocalDB) Delete(tableName string,key string) *LocalDB {
+func (localDB *LocalDB) Delete(tableName string, key string) *LocalDB {
 
-	localDB.Db.Update(func(tx *bolt.Tx) error {
+	err := localDB.Db.Update(func(tx *bolt.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists([]byte(tableName))
 		if err != nil {
 			kits.Panic("创建表异常！", err)
@@ -78,18 +84,28 @@ func (localDB *LocalDB) Delete(tableName string,key string) *LocalDB {
 		}
 		return nil
 	})
+	kits.Panic("删除异常！", err)
 	return localDB
 }
 
-//查询数据
-func (localDB *LocalDB) Query( tableName string,key string) interface{} {
-	var v interface{}
-	localDB.Db.View(func(tx *bolt.Tx) error {
+//查询数据，返回json数据。
+func (localDB *LocalDB) Query(tableName string, key string) []byte {
+	var str []byte
+	err := localDB.Db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte(tableName))
-		str := bucket.Get([]byte(key))
-		err:=json.Unmarshal(str,&v)
-		kits.Panic("json转换对象出错！",err)
+		 str = bucket.Get([]byte(key))
 		return nil
 	})
-	return v
+	kits.Panic("查询报错！", err)
+	return str
+}
+
+//查询用户数据
+func (localDB *LocalDB) QueryUser(tableName string,key string) domain.User {
+	var user= domain.User{}
+	str:=localDB.Query(tableName,key)
+	if str!=nil{
+		json.Unmarshal(str,&user)
+	}
+	return user
 }
