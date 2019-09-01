@@ -116,7 +116,7 @@ type Systeminfo struct {
  **/
 
 type ResultDTO struct {
-	code int64       //异常码
-	data interface{} //返回数据
-	msg  string      //返回消息
+	Code int64       //异常码
+	Data interface{} //返回数据
+	Msg  string      //返回消息
 }
