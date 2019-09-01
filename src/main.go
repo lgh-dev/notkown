@@ -1,9 +1,9 @@
 package main
 
 import (
-	"net/http"
 	"controller"
 	"log"
+	"net/http"
 )
 
 const tb_user="tb_user"
@@ -39,8 +39,9 @@ func main() {
 	http.HandleFunc("/newFriendRequest/query", controller.QueryNewFriendRequest)
 	//系统信息查询
 	http.HandleFunc("/SystemInfo/query", controller.QuerySystemInfos)
-	//开启http监听接口
-	http.ListenAndServe("127.0.0.1:7777", nil)
 	log.Println("木知木知，谁也不知！")
 	log.Println("Not kown, not kown. Nobody kown！")
+	//开启http监听接口
+	http.ListenAndServe("127.0.0.1:7777", nil)
+
 }
